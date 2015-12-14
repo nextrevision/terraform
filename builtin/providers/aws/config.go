@@ -353,14 +353,14 @@ func getCreds(key, secret, token string) *awsCredentials.Credentials {
 	}
 	r, err := c.Get(metadataURL)
 	var useIAM bool
-	// log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
+	log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
 	if err == nil {
-		// server := r.Header["Server"]
-		// if server == nil {
-		// 	log.Printf("\n\t--- is nil")
-		// } else {
-		// 	log.Printf("\n\t--- is NOT nil")
-		// }
+		server := r.Header["Server"]
+		if server == nil {
+			log.Printf("\n\t--- is nil")
+		} else {
+			log.Printf("\n\t--- is NOT nil")
+		}
 
 		// log.Printf("\n---\nServer in errnil: %#v\n---\n", server)
 		if r.Header["Server"] != nil && strings.Contains(r.Header["Server"][0], "EC2") {
