@@ -11,15 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 )
 
-// Grab any existing AWS keys and preserve. In some tests we'll unset these, so
-// we need to have them and restore them after
-var k = os.Getenv("AWS_ACCESS_KEY_ID")
-var s = os.Getenv("AWS_SECRET_ACCESS_KEY")
-var to = os.Getenv("AWS_SESSION_TOKEN")
-
 func TestAWSConfig_shouldError(t *testing.T) {
-	unsetEnv(t)
-	defer resetEnv(t)
+	resetEnv := unsetEnv(t)
+	defer resetEnv()
 	cfg := Config{}
 
 	c := getCreds(cfg.AccessKey, cfg.SecretKey, cfg.Token)
@@ -80,8 +74,8 @@ func TestAWSConfig_shouldBeStatic(t *testing.T) {
 // credentials.
 func TestAWSConfig_shouldIAM(t *testing.T) {
 	// clear AWS_* environment variables
-	unsetEnv(t)
-	defer resetEnv(t)
+	resetEnv := unsetEnv(t)
+	defer resetEnv()
 
 	// capture the test server's close method, to call after the test returns
 	ts := awsEnv(t)
@@ -114,8 +108,8 @@ func TestAWSConfig_shouldIAM(t *testing.T) {
 // from an EC2 instance, without environment variables or manually supplied
 // credentials.
 func TestAWSConfig_shouldIgnoreIAM(t *testing.T) {
-	unsetEnv(t)
-	defer resetEnv(t)
+	resetEnv := unsetEnv(t)
+	defer resetEnv()
 	// capture the test server's close method, to call after the test returns
 	ts := awsEnv(t)
 	defer ts()
@@ -163,8 +157,8 @@ func TestAWSConfig_shouldBeENV(t *testing.T) {
 	// need to set the environment variables to a dummy string, as we don't know
 	// what they may be at runtime without hardcoding here
 	s := "some_env"
-	setEnv(s, t)
-	defer resetEnv(t)
+	resetEnv := setEnv(s, t)
+	defer resetEnv()
 
 	cfg := Config{}
 	creds := getCreds(cfg.AccessKey, cfg.SecretKey, cfg.Token)
@@ -188,7 +182,10 @@ func TestAWSConfig_shouldBeENV(t *testing.T) {
 
 // unsetEnv unsets enviornment variables for testing a "clean slate" with no
 // credentials in the environment
-func unsetEnv(t *testing.T) {
+func unsetEnv(t *testing.T) func() {
+	// Grab any existing AWS keys and preserve. In some tests we'll unset these, so
+	// we need to have them and restore them after
+	e := getEnv()
 	if err := os.Unsetenv("AWS_ACCESS_KEY_ID"); err != nil {
 		t.Fatalf("Error unsetting env var AWS_ACCESS_KEY_ID: %s", err)
 	}
@@ -198,23 +195,24 @@ func unsetEnv(t *testing.T) {
 	if err := os.Unsetenv("AWS_SESSION_TOKEN"); err != nil {
 		t.Fatalf("Error unsetting env var AWS_SESSION_TOKEN: %s", err)
 	}
+
+	return func() {
+		// re-set all the envs we unset above
+		if err := os.Setenv("AWS_ACCESS_KEY_ID", e.Key); err != nil {
+			t.Fatalf("Error resetting env var AWS_ACCESS_KEY_ID: %s", err)
+		}
+		if err := os.Setenv("AWS_SECRET_ACCESS_KEY", e.Secret); err != nil {
+			t.Fatalf("Error resetting env var AWS_SECRET_ACCESS_KEY: %s", err)
+		}
+		if err := os.Setenv("AWS_SESSION_TOKEN", e.Token); err != nil {
+			t.Fatalf("Error resetting env var AWS_SESSION_TOKEN: %s", err)
+		}
+	}
 }
 
-func resetEnv(t *testing.T) {
-	// re-set all the envs we unset above
-	if err := os.Setenv("AWS_ACCESS_KEY_ID", k); err != nil {
-		t.Fatalf("Error resetting env var AWS_ACCESS_KEY_ID: %s", err)
-	}
-	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", s); err != nil {
-		t.Fatalf("Error resetting env var AWS_SECRET_ACCESS_KEY: %s", err)
-	}
-	if err := os.Setenv("AWS_SESSION_TOKEN", to); err != nil {
-		t.Fatalf("Error resetting env var AWS_SESSION_TOKEN: %s", err)
-	}
-}
-
-func setEnv(s string, t *testing.T) {
-	// set all the envs to a dummy value
+func setEnv(s string, t *testing.T) func() {
+	e := getEnv()
+	// Set all the envs to a dummy value
 	if err := os.Setenv("AWS_ACCESS_KEY_ID", s); err != nil {
 		t.Fatalf("Error setting env var AWS_ACCESS_KEY_ID: %s", err)
 	}
@@ -223,6 +221,19 @@ func setEnv(s string, t *testing.T) {
 	}
 	if err := os.Setenv("AWS_SESSION_TOKEN", s); err != nil {
 		t.Fatalf("Error setting env var AWS_SESSION_TOKEN: %s", err)
+	}
+
+	return func() {
+		// re-set all the envs we unset above
+		if err := os.Setenv("AWS_ACCESS_KEY_ID", e.Key); err != nil {
+			t.Fatalf("Error resetting env var AWS_ACCESS_KEY_ID: %s", err)
+		}
+		if err := os.Setenv("AWS_SECRET_ACCESS_KEY", e.Secret); err != nil {
+			t.Fatalf("Error resetting env var AWS_SECRET_ACCESS_KEY: %s", err)
+		}
+		if err := os.Setenv("AWS_SESSION_TOKEN", e.Token); err != nil {
+			t.Fatalf("Error resetting env var AWS_SESSION_TOKEN: %s", err)
+		}
 	}
 }
 
@@ -247,6 +258,21 @@ func awsEnv(t *testing.T) func() {
 
 	os.Setenv("AWS_METADATA_URL", ts.URL)
 	return ts.Close
+}
+
+func getEnv() *currentEnv {
+	// Grab any existing AWS keys and preserve. In some tests we'll unset these, so
+	// we need to have them and restore them after
+	return &currentEnv{
+		Key:    os.Getenv("AWS_ACCESS_KEY_ID"),
+		Secret: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		Token:  os.Getenv("AWS_SESSION_TOKEN"),
+	}
+}
+
+// struct to preserve the current environment
+type currentEnv struct {
+	Key, Secret, Token string
 }
 
 type routes struct {
