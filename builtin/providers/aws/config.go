@@ -351,9 +351,13 @@ func getCreds(key, secret, token string) *awsCredentials.Credentials {
 	c := http.Client{
 		Timeout: 100 * time.Millisecond,
 	}
+
+	log.Printf("\n---\nMetadata: %#v\n---\n", metadataURL)
 	r, err := c.Get(metadataURL)
 	var useIAM bool
-	log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
+	if r != nil {
+		log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
+	}
 	if err == nil {
 		server := r.Header["Server"]
 		if server == nil {
