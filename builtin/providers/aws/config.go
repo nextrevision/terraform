@@ -352,19 +352,27 @@ func getCreds(key, secret, token string) *awsCredentials.Credentials {
 		Timeout: 100 * time.Millisecond,
 	}
 	r, err := c.Get(metadataURL)
-	log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
+	var useIAM bool
+	// log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
 	if err == nil {
-		server := r.Header["Server"]
-		if server == nil {
-			log.Printf("\n\t--- is nil")
-		} else {
-			log.Printf("\n\t--- is NOT nil")
-		}
+		// server := r.Header["Server"]
+		// if server == nil {
+		// 	log.Printf("\n\t--- is nil")
+		// } else {
+		// 	log.Printf("\n\t--- is NOT nil")
+		// }
 
+		// log.Printf("\n---\nServer in errnil: %#v\n---\n", server)
 		if r.Header["Server"] != nil && strings.Contains(r.Header["Server"][0], "EC2") {
-			log.Printf("\n---\nServer in errnil: %#v\n---\n", server)
-			providers = append(providers, &ec2rolecreds.EC2RoleProvider{Client: ec2metadata.New(session.New(&aws.Config{Endpoint: aws.String(metadataURL)}))})
+			useIAM = true
 		}
+	}
+
+	if useIAM {
+		log.Printf("[DEBUG] EC2 Metadata service found, adding EC2 Role Credential Provider")
+		providers = append(providers, &ec2rolecreds.EC2RoleProvider{Client: ec2metadata.New(session.New(&aws.Config{Endpoint: aws.String(metadataURL)}))})
+	} else {
+		log.Printf("[DEBUG] EC2 Metadata service not found, not adding EC2 Role Credential Provider")
 	}
 	return awsCredentials.NewChainCredentials(providers)
 }
