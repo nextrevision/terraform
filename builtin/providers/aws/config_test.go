@@ -236,9 +236,10 @@ func awsEnv(t *testing.T) func() {
 		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Add("Server", "MockEC2")
 		for _, e := range routes.Endpoints {
 			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
 				fmt.Fprintln(w, e.Body)
 			}
 		}
@@ -252,9 +253,8 @@ type routes struct {
 	Endpoints []*endpoint `json:"endpoints"`
 }
 type endpoint struct {
-	Uri         string `json:"uri"`
-	ContentType string `json:"content-type"`
-	Body        string `json:"body"`
+	Uri  string `json:"uri"`
+	Body string `json:"body"`
 }
 
 const aws_routes = `
@@ -262,12 +262,10 @@ const aws_routes = `
   "endpoints": [
     {
       "uri": "/meta-data/iam/security-credentials",
-      "content-type": "text/plain",
       "body": "test_role"
     },
     {
       "uri": "/meta-data/iam/security-credentials/test_role",
-      "content-type": "text/plain",
       "body": "{\"Code\":\"Success\",\"LastUpdated\":\"2015-12-11T17:17:25Z\",\"Type\":\"AWS-HMAC\",\"AccessKeyId\":\"somekey\",\"SecretAccessKey\":\"somesecret\",\"Token\":\"sometoken\"}"
     }
   ]

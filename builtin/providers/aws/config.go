@@ -351,9 +351,20 @@ func getCreds(key, secret, token string) *awsCredentials.Credentials {
 	c := http.Client{
 		Timeout: 100 * time.Millisecond,
 	}
-	_, err := c.Get(metadataURL)
+	r, err := c.Get(metadataURL)
+	log.Printf("\n---\nHeaders: %#v\n---\n", r.Header)
 	if err == nil {
-		providers = append(providers, &ec2rolecreds.EC2RoleProvider{Client: ec2metadata.New(session.New(&aws.Config{Endpoint: aws.String(metadataURL)}))})
+		server := r.Header["Server"]
+		if server == nil {
+			log.Printf("\n\t--- is nil")
+		} else {
+			log.Printf("\n\t--- is NOT nil")
+		}
+
+		if r.Header["Server"] != nil && strings.Contains(r.Header["Server"][0], "EC2") {
+			log.Printf("\n---\nServer in errnil: %#v\n---\n", server)
+			providers = append(providers, &ec2rolecreds.EC2RoleProvider{Client: ec2metadata.New(session.New(&aws.Config{Endpoint: aws.String(metadataURL)}))})
+		}
 	}
 	return awsCredentials.NewChainCredentials(providers)
 }
