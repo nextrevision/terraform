@@ -562,6 +562,11 @@
 			"Rev": "f75d769b07edce8a73682dcf325b4404f366ab3d"
 		},
 		{
+			"ImportPath": "github.com/docker/go-dockercloud/dockercloud",
+			"Comment": "v1.0.1",
+			"Rev": "d2de6891fa32ebb0a1a57a234049d84245da6036"
+		},
+		{
 			"ImportPath": "github.com/dylanmei/iso8601",
 			"Rev": "2075bf119b58e5576c6ed9f867b8f3d17f2e54d4"
 		},
@@ -666,6 +671,10 @@
 		{
 			"ImportPath": "github.com/google/go-querystring/query",
 			"Rev": "2a60fc2ba6c19de80291203597d752e9ba58e4c0"
+		},
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Rev": "844dd6d40e1a9215ef4c8a204bfc839fcf5dd5dd"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/atlas-go/archive",
