@@ -61,6 +61,58 @@ func resourceDockercloudNodeCluster() *schema.Resource {
 				ForceNew: false,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
+			"provider_options": &schema.Schema{
+				Type:     schema.TypeSet,
+				Optional: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"vpc": &schema.Schema{
+							Type:     schema.TypeSet,
+							Optional: true,
+							ForceNew: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"id": &schema.Schema{
+										Type:     schema.TypeString,
+										Required: true,
+										ForceNew: true,
+									},
+									"subnets": &schema.Schema{
+										Type:     schema.TypeList,
+										Optional: true,
+										ForceNew: true,
+										Elem:     &schema.Schema{Type: schema.TypeString},
+									},
+									"security_groups": &schema.Schema{
+										Type:     schema.TypeList,
+										Optional: true,
+										ForceNew: true,
+										Elem:     &schema.Schema{Type: schema.TypeString},
+									},
+								},
+							},
+						},
+						"iam": &schema.Schema{
+							Type:     schema.TypeSet,
+							Optional: true,
+							ForceNew: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"instance_profile_name": &schema.Schema{
+										Type:     schema.TypeString,
+										Required: true,
+										ForceNew: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -91,6 +143,15 @@ func resourceDockercloudNodeClusterCreate(d *schema.ResourceData, meta interface
 			key := fmt.Sprintf("tags.%d", i)
 			opts.Tags = append(opts.Tags, dockercloud.NodeTag{Name: d.Get(key).(string)})
 		}
+	}
+
+	if attr, ok := d.GetOk("provider_options"); ok {
+		providerOptions := attr.(*schema.Set).List()[0].(map[string]interface{})
+		opts.Provider_options = &dockercloud.ProviderOption{
+			Vpc: vpcSetToVPC(providerOptions["vpc"].(*schema.Set)),
+			Iam: iamSetToIAM(providerOptions["iam"].(*schema.Set)),
+		}
+		fmt.Printf("%+v\n", opts.Provider_options)
 	}
 
 	nodeCluster, err := dockercloud.CreateNodeCluster(*opts)
@@ -252,4 +313,39 @@ func newNodeClusterStateRefreshFunc(d *schema.ResourceData, meta interface{}) re
 
 		return nodeCluster, nodeCluster.State, nil
 	}
+}
+
+func vpcSetToVPC(s *schema.Set) dockercloud.VPC {
+	vpc := dockercloud.VPC{}
+	subnets := []string{}
+	security_groups := []string{}
+
+	if s.Len() > 0 {
+		vpcOptions := s.List()[0].(map[string]interface{})
+
+		for _, subnet := range vpcOptions["subnets"].([]interface{}) {
+			subnets = append(subnets, subnet.(string))
+		}
+
+		for _, sg := range vpcOptions["security_groups"].([]interface{}) {
+			security_groups = append(security_groups, sg.(string))
+		}
+
+		vpc.Id = vpcOptions["id"].(string)
+		vpc.Subnets = subnets
+		vpc.Security_groups = security_groups
+	}
+
+	return vpc
+}
+
+func iamSetToIAM(s *schema.Set) dockercloud.IAM {
+	iam := dockercloud.IAM{}
+
+	if s.Len() > 0 {
+		iamOptions := s.List()[0].(map[string]interface{})
+		iam.Instance_profile_name = iamOptions["instance_profile_name"].(string)
+	}
+
+	return iam
 }
